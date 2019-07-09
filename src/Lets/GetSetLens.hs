@@ -74,8 +74,7 @@ get ::
   Lens a b
   -> a
   -> b
-get (Lens _ g) =
-  g
+get (Lens s g) = g
 
 -- |
 --
@@ -93,8 +92,7 @@ set ::
   -> a 
   -> b
   -> a
-set (Lens s _) a =
-  s a
+set (Lens s _) a = s a
 
 -- | The get/set law of lenses. This function should always return @True@.
 getsetLaw ::
@@ -144,8 +142,7 @@ modify ::
   -> (b -> b)
   -> a
   -> a
-modify =
-  error "todo: modify"
+modify (Lens s g) f a = s a (f (g a))
 
 -- | An alias for @modify@.
 (%~) ::
@@ -174,8 +171,7 @@ infixr 4 %~
   -> b
   -> a
   -> a
-(.~) =
-  error "todo: (.~)"
+(.~) (Lens s g) b a = s a (g a)
 
 infixl 5 .~
 
@@ -189,14 +185,14 @@ infixl 5 .~
 --
 -- >>> fmodify fstL (\n -> bool Nothing (Just (n * 2)) (even n)) (11, "abc")
 -- Nothing
+
 fmodify ::
   Functor f =>
   Lens a b
   -> (b -> f b)
   -> a
   -> f a
-fmodify =
-  error "todo: fmodify"
+fmodify (Lens s g) bfb a =  (s a) <$> (bfb (g a))
 
 -- |
 --
@@ -211,8 +207,10 @@ fmodify =
   -> f b
   -> a
   -> f a
-(|=) =
-  error "todo: (|=)"
+(|=) (Lens s g) fb a = (s a) <$> fb 
+
+-- g a :: b 
+-- s a :: b -> a 
 
 infixl 5 |=
 
@@ -228,8 +226,7 @@ infixl 5 |=
 -- prop> let types = (x :: Int, y :: String) in setsetLaw fstL (x, y) z
 fstL ::
   Lens (x, y) x
-fstL =
-  error "todo: fstL"
+fstL = Lens (\(_, y) x -> (x, y)) (\(x, _) -> x)
 
 -- |
 --
@@ -243,8 +240,7 @@ fstL =
 -- prop> let types = (x :: Int, y :: String) in setsetLaw sndL (x, y) z
 sndL ::
   Lens (x, y) y
-sndL =
-  error "todo: sndL"
+sndL = Lens (\(x, _) y -> (x, y)) (\(_, y) -> y)
 
 -- |
 --
@@ -269,8 +265,7 @@ mapL ::
   Ord k =>
   k
   -> Lens (Map k v) (Maybe v)
-mapL =
-  error "todo: mapL"
+mapL k = Lens (maybe . Map.delete k <*> (flip (Map.insert k))) (Map.lookup k)
 
 -- |
 --
@@ -295,8 +290,7 @@ setL ::
   Ord k =>
   k
   -> Lens (Set k) Bool
-setL =
-  error "todo: setL"
+setL k = Lens (\s b -> if b then Set.insert k s else Set.delete k s) (Set.member k)
 
 -- |
 --
@@ -305,12 +299,41 @@ setL =
 --
 -- >>> set (compose fstL sndL) ("abc", (7, "def")) 8
 -- ("abc",(8,"def"))
+
+-- Lens 
+--  (a -> c -> a)
+--  (a -> c) 
+
 compose ::
   Lens b c
   -> Lens a b
   -> Lens a c
-compose =
-  error "todo: compose"
+compose l1 l2 = 
+  Lens 
+    ((get l1) . (get l2)) . (set l2) 
+    (get l1) . (get l2)
+
+-- set l1 :: b -> c -> b
+-- get l1 :: b -> c 
+
+-- set l2 :: a -> b -> a
+-- get l2 :: a -> b
+
+
+
+
+  -- (a -> b -> a) a = (b -> a)
+  -- (b -> c -> b) ((a -> b) a) = (b -> c -> b) b 
+
+  -- (b -> a) . (c -> b) = c - > a
+
+  -- (b -> c) . (a -> b) = a -> c
+
+  -- (b -> c -> b) . (a -> b -> a) = (a -> c -> b) 
+
+  -- (a -> c -> b) . (a -> b) = a -> c -> b  
+
+
 
 -- | An alias for @compose@.
 (|.) ::
